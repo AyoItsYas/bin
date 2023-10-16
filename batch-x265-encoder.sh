@@ -1,0 +1,42 @@
+#!/bin/bash
+
+TOTAL_COUNT=0
+TOTAL_OLD_SIZE=0
+TOTAL_NEW_SIZE=0
+
+START_TIME=$(date +%s)
+
+while read -r FILE; do
+    NEW_FILE="${FILE%.*}-X265.mp4"
+
+    CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "$FILE")
+
+    if [ "$CODEC" == "hevc" ]; then
+        continue
+    fi
+
+    if [ -f "$NEW_FILE" ]; then
+        continue
+    fi
+
+    ffmpeg -i "$FILE" -c:v libx265 -vtag hvc1 -map_metadata 0 "${NEW_FILE}"
+
+    TOTAL_COUNT=$((TOTAL_COUNT + 1))
+    TOTAL_OLD_SIZE=$((TOTAL_OLD_SIZE + $(stat -c%s "$FILE")))
+    TOTAL_NEW_SIZE=$((TOTAL_NEW_SIZE + $(stat -c%s "${NEW_FILE}")))
+
+    echo "$FILE"
+done
+
+END_TIME=$(date +%s)
+
+EXECUTION_TIME=$((END_TIME - START_TIME))
+
+echo "Batch x265 Encorder" >> log.txt
+echo "  Total files converted      : $TOTAL_COUNT" >> log.txt
+echo "  Total size before encoding : $((TOTAL_OLD_SIZE))" >> log.txt
+echo "  Total size after encoding  : $((TOTAL_NEW_SIZE))" >> log.txt
+echo "  Total size difference      : $(((TOTAL_OLD_SIZE - TOTAL_NEW_SIZE)))" >> log.txt
+printf "  Execution time             : %02d:%02d:%02d\n" "$((EXECUTION_TIME / 3600))" "$((EXECUTION_TIME % 3600 / 60))" "$((EXECUTION_TIME % 60))" >> log.txt
+echo "  Time per file              : $((EXECUTION_TIME / TOTAL_COUNT)) seconds" >> log.txt
+echo "  Time per byte              : $((EXECUTION_TIME / (TOTAL_NEW_SIZE))) seconds" >> log.txt
