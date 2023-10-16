@@ -1,5 +1,7 @@
 #!/bin/bash
 
+ARGS=("$@")
+
 TOTAL_COUNT=0
 TOTAL_OLD_SIZE=0
 TOTAL_NEW_SIZE=0
@@ -19,7 +21,7 @@ while read -r FILE; do
         continue
     fi
 
-    ffmpeg -i "$FILE" -c:v libx265 -vtag hvc1 -map_metadata 0 "${NEW_FILE}"
+    ffmpeg -i "$FILE" -c:v libx265 -vtag hvc1 -map_metadata 0 "${NEW_FILE}" "${ARGS[@]}"
 
     TOTAL_COUNT=$((TOTAL_COUNT + 1))
     TOTAL_OLD_SIZE=$((TOTAL_OLD_SIZE + $(stat -c%s "$FILE")))

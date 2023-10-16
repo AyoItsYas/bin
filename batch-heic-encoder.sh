@@ -1,5 +1,7 @@
 #!/bin/bash
 
+ARGS=("$@")
+
 TOTAL_COUNT=0
 TOTAL_OLD_SIZE=0
 TOTAL_NEW_SIZE=0
@@ -7,7 +9,7 @@ TOTAL_NEW_SIZE=0
 START_TIME=$(date +%s)
 
 while read -r FILE; do
-    magick convert "$FILE" "${FILE%.*}.heic" > /dev/null 2>&1
+    magick convert "$FILE" "${FILE%.*}.heic" "${ARGS[@]}"
 
     TOTAL_COUNT=$((TOTAL_COUNT + 1))
     TOTAL_OLD_SIZE=$((TOTAL_OLD_SIZE + $(stat -c%s "$FILE")))
