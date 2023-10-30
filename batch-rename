@@ -29,7 +29,7 @@ def parse_flag(flag: str, *, required: bool = False, invalid_prompt: str = None)
 if __name__ == "__main__":
     sys.argv.pop(0)  # remove script name
 
-    check = parse_flag("-c", required=True)
+    check = parse_flag("-c")
     process = parse_flag("-p", required=True)
 
     PIPED = not sys.stdin.isatty()
@@ -45,10 +45,14 @@ if __name__ == "__main__":
             "re": re,
         }
 
-        valid = eval(
-            f"lambda x: {check}",
-            specifiers,
-        )(filename)
+        valid = (
+            eval(
+                f"lambda x: {check}",
+                specifiers,
+            )(filename)
+            if check
+            else True
+        )
 
         if valid:
             value = eval(f"lambda x: {process}", specifiers)(filename)
