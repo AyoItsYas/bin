@@ -1,0 +1,71 @@
+#!/usr/bin/sh
+
+COMMAND="$1"
+
+CACHE_DIR="$HOME/.cache/conkyd"
+PID_FILE="$CACHE_DIR/conky-manager.pid"
+
+if [ ! -d "$CACHE_DIR" ]; then
+    mkdir -p "$CACHE_DIR"
+fi
+
+if [ "$COMMAND" = "start" ]; then
+    THEME_PATH="$2"
+    LOG_FOLD="$CACHE_DIR/logs"
+
+    # if [ ! -f "$PID_FILE" ]; then
+    #     touch "$PID_FILE"
+    # fi
+
+    if [ ! -d "$LOG_FOLD" ]; then
+        mkdir -p "$LOG_FOLD"
+    fi
+
+    if [ -z "$THEME_PATH" ]; then
+        THEME_PATH="$HOME/.conky/"
+    fi
+
+    find "$THEME_PATH" -type f -name "*.conkyrc" | while IFS= read -r FILE; do
+        file_base="${FILE##*/}"
+        file_base="${file_base%.*}"
+
+        conky -c "$FILE" > "$LOG_FOLD/$file_base.log" 2>&1 & echo $! >> "$PID_FILE"
+
+        echo "Started conky with pid $! logging to '$LOG_FOLD/$file_base.log'"
+    done
+
+    exit 0
+fi
+
+if [ "$COMMAND" = "stop" ]; then
+    if [ -f "$PID_FILE" ]; then
+        while read -r PID; do
+            kill "$PID"
+            echo "Killed conky with pid $PID"
+        done < "$PID_FILE"
+
+        rm "$PID_FILE"
+    fi
+
+    exit 0
+fi
+
+# if the command is deamonise run the 3rd argument as a command and redirect the output to a log file in the cache directory store the pid in the pid file
+if [ "$COMMAND" = "deamonise" ]; then
+    LOG_FOLD="$CACHE_DIR/logs"
+
+    if [ ! -d "$LOG_FOLD" ]; then
+        mkdir -p "$LOG_FOLD"
+    fi
+
+    if [ -z "$3" ]; then
+        echo "No command to deamonise"
+        exit 1
+    fi
+
+    $3 > "$LOG_FOLD/$2.log" 2>&1 & echo $! >> "$PID_FILE"
+
+    echo "Started deamon with pid $! logging to '$LOG_FOLD/$2.log'"
+
+    exit 0
+fi
