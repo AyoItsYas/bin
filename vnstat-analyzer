@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
 
-
 import sys
 import json
 
+if __name__ != "__main__":
+    print("This script is not meant to be imported.")
+    sys.exit(1)
+
 CHUNK = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-
-
-def format_bytes(size):
-    power = 2**10
-    n = 0
-    power_labels = {0: "", 1: "K", 2: "M", 3: "G", 4: "T"}
-    while size > power:
-        size /= power
-        n += 1
-    return f"{size:.2f} {power_labels[n]}B"
 
 
 output = input()

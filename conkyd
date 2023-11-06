@@ -13,9 +13,6 @@ if [ "$COMMAND" = "start" ]; then
     THEME_PATH="$2"
     LOG_FOLD="$CACHE_DIR/logs"
 
-    # if [ ! -f "$PID_FILE" ]; then
-    #     touch "$PID_FILE"
-    # fi
 
     if [ ! -d "$LOG_FOLD" ]; then
         mkdir -p "$LOG_FOLD"
@@ -26,10 +23,12 @@ if [ "$COMMAND" = "start" ]; then
     fi
 
     find "$THEME_PATH" -type f -name "*.conkyrc" | while IFS= read -r FILE; do
+        file_path="${FILE%/*}"
+
         file_base="${FILE##*/}"
         file_base="${file_base%.*}"
 
-        conky -c "$FILE" > "$LOG_FOLD/$file_base.log" 2>&1 & echo $! >> "$PID_FILE"
+        cd "$file_path" && conky -c "$FILE" > "$LOG_FOLD/$file_base.log" 2>&1 & echo $! >> "$PID_FILE"
 
         echo "Started conky with pid $! logging to '$LOG_FOLD/$file_base.log'"
     done
@@ -50,7 +49,6 @@ if [ "$COMMAND" = "stop" ]; then
     exit 0
 fi
 
-# if the command is deamonise run the 3rd argument as a command and redirect the output to a log file in the cache directory store the pid in the pid file
 if [ "$COMMAND" = "deamonise" ]; then
     LOG_FOLD="$CACHE_DIR/logs"
 
