@@ -13,8 +13,6 @@ if __name__ != "__main__":
 import sys
 import subprocess
 
-# write a help message in the format of a standard GNU linux help message
-
 HELP = """Usage: defaults-manager [MODE] [EXECUTABLE] [DEFAULTS]
 Options:
     -?, -h, --help  Show this help message and exit.
@@ -61,9 +59,12 @@ def set_mode():
     EXECUTABLE_PATH = check_output(["which", EXECUTABLE]).decode("utf-8").strip()
     ORIGINAL_EXECUTABLE = EXECUTABLE_PATH + ".original"
 
-    if check_call(["sudo", "ls", ORIGINAL_EXECUTABLE]):
-        print("Already wrapped! Please reset first.")
-        sys.exit(1)
+    try:
+        if check_call(["sudo", "ls", ORIGINAL_EXECUTABLE]):
+            print("Already wrapped! Please reset first.")
+            sys.exit(1)
+    except subprocess.CalledProcessError:
+        pass
 
     check_call(["sudo", "mv", EXECUTABLE_PATH, ORIGINAL_EXECUTABLE])
 
