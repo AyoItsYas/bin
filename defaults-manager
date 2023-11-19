@@ -13,6 +13,30 @@ if __name__ != "__main__":
 import sys
 import subprocess
 
+# write a help message in the format of a standard GNU linux help message
+
+HELP = """Usage: defaults-manager [MODE] [EXECUTABLE] [DEFAULTS]
+Options:
+    -?, -h, --help  Show this help message and exit.
+
+Other arguments:
+MODE:
+    set     Set the defaults wrapper.
+    reset   Reset the defaults wrapper.
+
+EXECUTABLE: The executable to wrap.
+DEFAULTS: The defaults to pass to the executable.
+
+EXAMPLE(S):
+    defaults-manager set python3 -B
+
+    This will set the defaults wrapper for python3 to be python3 -B.
+
+    defaults-manager reset python3
+
+    This will reset the defaults wrapper for python3.
+"""
+
 WRAPPER = """#!/usr/bin/bash
 
 "{}" {} "$@"
@@ -64,6 +88,9 @@ def reset_mode():
 MODES = {
     "set": set_mode,
     "reset": reset_mode,
+    "-?": lambda: print(HELP),
+    "-h": lambda: print(HELP),
+    "--help": lambda: print(HELP),
 }
 MODES_K = MODES.keys()
 
