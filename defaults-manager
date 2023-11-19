@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
+if __name__ != "__main__":
+    raise RuntimeError("This script should not be imported!")
+
+import sys
+import subprocess
+
+WRAPPER = """#!/usr/bin/bash
+
+"{}" {} "$@"
+"""
+
+
+def check_output(command: list[str], *args, **kwargs):
+    print(" ".join(command))
+    return subprocess.check_output(command, *args, **kwargs)
+
+
+def check_call(command: list[str], *args, **kwargs):
+    print(" ".join(command))
+    return subprocess.check_call(command, *args, stdout=subprocess.DEVNULL, **kwargs)
+
+
+def set_mode():
+    global WRAPPER
+
+    EXECUTABLE, DEFAULTS = ARGV
+
+    EXECUTABLE_PATH = check_output(["which", EXECUTABLE]).decode("utf-8").strip()
+    ORIGINAL_EXECUTABLE = EXECUTABLE_PATH + ".original"
+
+    if check_call(["sudo", "ls", ORIGINAL_EXECUTABLE]):
+        print("Already wrapped! Please reset first.")
+        sys.exit(1)
+
+    check_call(["sudo", "mv", EXECUTABLE_PATH, ORIGINAL_EXECUTABLE])
+
+    WRAPPER = WRAPPER.format(ORIGINAL_EXECUTABLE, DEFAULTS)
+
+    with open(f"/tmp/{EXECUTABLE}.tmp", "w") as f:
+        f.write(WRAPPER)
+
+    check_call(["sudo", "mv", f"/tmp/{EXECUTABLE}.tmp", EXECUTABLE_PATH])
+    check_call(["sudo", "chmod", "+x", EXECUTABLE_PATH])
+
+
+def reset_mode():
+    (EXECUTABLE,) = ARGV
+
+    EXECUTABLE_PATH = check_output(["which", EXECUTABLE]).decode("utf-8").strip()
+    ORIGINAL_EXECUTABLE = EXECUTABLE_PATH + ".original"
+
+    check_call(["sudo", "mv", ORIGINAL_EXECUTABLE, EXECUTABLE_PATH])
+
+
+MODES = {
+    "set": set_mode,
+    "reset": reset_mode,
+}
+MODES_K = MODES.keys()
+
+try:
+    _, MODE, *ARGV = sys.argv
+except ValueError:
+    print(f"Mode not specified, must be one of {', '.join(MODES_K)!r}.")
+    sys.exit(1)
+
+
+if MODE not in MODES_K:
+    print(f"Mode must be one of {', '.join(MODES_K)!r}.")
+    sys.exit(1)
+else:
+    MODES[MODE]()
