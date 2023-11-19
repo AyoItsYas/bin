@@ -48,13 +48,17 @@ def check_output(command: list[str], *args, **kwargs):
 
 def check_call(command: list[str], *args, **kwargs):
     print(" ".join(command))
-    return subprocess.check_call(command, *args, stdout=subprocess.DEVNULL, **kwargs)
+    return subprocess.check_call(
+        command, *args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **kwargs
+    )
 
 
 def set_mode():
     global WRAPPER
 
-    EXECUTABLE, DEFAULTS = ARGV
+    EXECUTABLE, *DEFAULTS = ARGV
+
+    DEFAULTS = " ".join(DEFAULTS)
 
     EXECUTABLE_PATH = check_output(["which", EXECUTABLE]).decode("utf-8").strip()
     ORIGINAL_EXECUTABLE = EXECUTABLE_PATH + ".original"
@@ -78,7 +82,7 @@ def set_mode():
 
 
 def reset_mode():
-    (EXECUTABLE,) = ARGV
+    (EXECUTABLE, *_) = ARGV
 
     EXECUTABLE_PATH = check_output(["which", EXECUTABLE]).decode("utf-8").strip()
     ORIGINAL_EXECUTABLE = EXECUTABLE_PATH + ".original"
