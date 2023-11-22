@@ -1,69 +1,140 @@
-#!/usr/bin/sh
+#!/usr/bin/env python3
 
-COMMAND="$1"
+from __future__ import annotations
 
-CACHE_DIR="$HOME/.cache/conkyd"
-PID_FILE="$CACHE_DIR/conky-manager.pid"
+try:
+    import argparse
+    import os
+    import subprocess
+    import sys
+    import time
 
-if [ ! -d "$CACHE_DIR" ]; then
-    mkdir -p "$CACHE_DIR"
-fi
+    from typing import TYPE_CHECKING
 
-if [ "$COMMAND" = "start" ]; then
-    THEME_PATH="$2"
-    LOG_FOLD="$CACHE_DIR/logs"
+    if TYPE_CHECKING:
+        pass
+except ImportError as e:
+    print("ImportError: {}".format(e))
+    sys.exit(1)
 
 
-    if [ ! -d "$LOG_FOLD" ]; then
-        mkdir -p "$LOG_FOLD"
-    fi
+if __name__ != "__main__":
+    print("This script is not meant to be imported.")
+    sys.exit(1)
 
-    if [ -z "$THEME_PATH" ]; then
-        THEME_PATH="$HOME/.conky/"
-    fi
+PID_FILE = "/tmp/conkyd.pid"
+LOG_FILE = "/tmp/conkyd.log"
+CONKY_FOLDER = f"{os.getenv('HOME')}/.conky"
 
-    find "$THEME_PATH" -type f -name "*.conkyrc" | while IFS= read -r FILE; do
-        file_path="${FILE%/*}"
 
-        file_base="${FILE##*/}"
-        file_base="${file_base%.*}"
+def conkyd_start() -> None:
+    global CONKY_FOLDER
 
-        cd "$file_path" && conky -c "$FILE" > "$LOG_FOLD/$file_base.log" 2>&1 & echo $! >> "$PID_FILE"
+    overlays = []
 
-        echo "Started conky with pid $! logging to '$LOG_FOLD/$file_base.log'"
-    done
+    def search(directory: str) -> None:
+        for item in os.listdir(directory):
+            path = f"{directory}/{item}"
 
-    exit 0
-fi
+            if os.path.isdir(path):
+                search(path)
+            elif os.path.isfile(path) and item.endswith("conkyrc"):
+                overlays.append(path)
 
-if [ "$COMMAND" = "stop" ]; then
-    if [ -f "$PID_FILE" ]; then
-        while read -r PID; do
-            kill "$PID"
-            echo "Killed conky with pid $PID"
-        done < "$PID_FILE"
+    search(CONKY_FOLDER)
 
-        rm "$PID_FILE"
-    fi
+    for overlay in overlays:
+        theme_folder = "/".join(overlay.split("/")[:-1])
+        subprocess.Popen(
+            ["conky", "-c", overlay, "-d"],
+            cwd=theme_folder,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).wait()
+        print(f"Started {overlay}")
 
-    exit 0
-fi
 
-if [ "$COMMAND" = "deamonise" ]; then
-    LOG_FOLD="$CACHE_DIR/logs"
+def conkyd_kill() -> None:
+    subprocess.Popen(["killall", "conky"])
 
-    if [ ! -d "$LOG_FOLD" ]; then
-        mkdir -p "$LOG_FOLD"
-    fi
 
-    if [ -z "$3" ]; then
-        echo "No command to deamonise"
-        exit 1
-    fi
+def conkyd_restart() -> None:
+    conkyd_kill()
+    conkyd_start()
 
-    $3 > "$LOG_FOLD/$2.log" 2>&1 & echo $! >> "$PID_FILE"
 
-    echo "Started deamon with pid $! logging to '$LOG_FOLD/$2.log'"
+def conkyd_stop() -> None:
+    subprocess.Popen(["killall", "-STOP", "conky"])
 
-    exit 0
-fi
+
+def conkyd_continue() -> None:
+    subprocess.Popen(["killall", "-CONT", "conky"])
+
+
+def conkyd_monitor_loop() -> None:
+    cores = os.cpu_count()
+
+    thresh = 0.8 * cores
+
+    while True:
+        load = open("/proc/loadavg").read().split(" ")[:3]
+        load = [float(i) for i in load]
+
+        rising = False
+
+        for i in range(2):
+            if load[i] > thresh:
+                rising = True
+                break
+
+            if load[i] > load[i + 1]:
+                rising = True
+
+        if rising and load[0] > thresh:
+            conkyd_stop()
+        else:
+            conkyd_continue()
+
+        time.sleep(30)
+
+
+def conkyd_monitor() -> None:
+    if os.fork() == 0:
+        conkyd_monitor_loop()
+
+
+MODES = {
+    "kill": conkyd_kill,
+    "monitor": conkyd_monitor,
+    "restart": conkyd_restart,
+    "start": conkyd_start,
+    "stop": conkyd_stop,
+    "continue": conkyd_continue,
+}
+
+parser = argparse.ArgumentParser(description="Run conky themes with ease.")
+
+parser.add_argument(
+    "mode",
+    metavar="MODE",
+    type=str,
+    choices=MODES.keys(),
+)
+
+parser.add_argument(
+    "-d",
+    metavar="DIR",
+    type=str,
+    nargs="*",
+    help="directory containing conkyrc files",
+    default=CONKY_FOLDER,
+    dest="dir",
+)
+
+
+args = parser.parse_args()
+
+CONKY_FOLDER = args.dir
+
+MODES[args.mode]()
