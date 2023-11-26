@@ -11,7 +11,6 @@ try:
     import json
     import time
     import argparse
-    import subprocess
 
 except ImportError as e:
     print("ImportError: {}".format(e))

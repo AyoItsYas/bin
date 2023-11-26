@@ -2,14 +2,35 @@
 
 import sys
 
-import subprocess
-from tabulate import tabulate
+if __name__ != "__main__":
+    print("This script is not meant to be imported.")
+    sys.exit(1)
+
+try:
+    import subprocess
+    from tabulate import tabulate
+except ImportError as e:
+    print("ImportError: {}".format(e))
+    sys.exit(1)
+
+
+def pkexeec_wrap(command: list[str]) -> list[str]:
+    command = [
+        "pkexec",
+        "--user",
+        "root",
+        *command,
+    ]
+
+    return command
 
 
 if len(sys.argv) > 1:
-    sys.exit(subprocess.call(["sudo", "usbguard"] + sys.argv[1:]))
+    sys.exit(subprocess.call(pkexeec_wrap(["usbguard"] + sys.argv[1:])))
 
-output = subprocess.check_output(["sudo", "usbguard", "list-devices"]).decode("utf-8")
+output = subprocess.check_output(pkexeec_wrap(["usbguard", "list-devices"])).decode(
+    "utf-8"
+)
 
 table = []
 
@@ -51,6 +72,7 @@ for output_line in output.split("\n"):
     table.append(parameters)
 
 print(
+    "\n",
     tabulate(
         table,
         headers=[
@@ -77,5 +99,5 @@ print(
             "right",
             "left",
         ),
-    )
+    ),
 )

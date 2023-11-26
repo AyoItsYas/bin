@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import sys
+
 try:
     import argparse
     import os
     import subprocess
-    import sys
     import time
 
     from typing import TYPE_CHECKING

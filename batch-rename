@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
-import os
-import re
 import sys
 
-from typing import TYPE_CHECKING
+if __name__ != "__main__":
+    print("This script is not meant to be imported.")
+    sys.exit(1)
 
-if TYPE_CHECKING:
-    from typing import Callable
+try:
+    import os
+    import re
+
+    from typing import TYPE_CHECKING
+
+    if TYPE_CHECKING:
+        from typing import Callable
+except ImportError as e:
+    print("ImportError: {}".format(e))
+    sys.exit(1)
 
 
 def parse_flag(flag: str, *, required: bool = False, invalid_prompt: str = None):
@@ -26,58 +35,59 @@ def parse_flag(flag: str, *, required: bool = False, invalid_prompt: str = None)
             sys.exit(1)
 
 
-if __name__ == "__main__":
-    sys.argv.pop(0)  # remove script name
+sys.argv.pop(0)  # remove script name
 
-    check = parse_flag("-c")
-    process = parse_flag("-p", required=True)
+check = parse_flag("-c")
+process = parse_flag("-p", required=True)
 
-    PIPED = not sys.stdin.isatty()
+PIPED = not sys.stdin.isatty()
 
-    def __main__(value: str, *, count: Callable = 0):
-        filename = value.split("/")[-1]
-        raw_value = value
 
-        specifiers = {
-            "f": filename,
-            "i": str(count()),
-            "n": str(len(filename)),
-            "re": re,
-        }
+def __main__(value: str, *, count: Callable = 0):
+    filename = value.split("/")[-1]
+    raw_value = value
 
-        valid = (
-            eval(
-                f"lambda x: {check}",
-                specifiers,
-            )(filename)
-            if check
-            else True
-        )
+    specifiers = {
+        "f": filename,
+        "i": str(count()),
+        "n": str(len(filename)),
+        "re": re,
+    }
 
-        if valid:
-            value = eval(f"lambda x: {process}", specifiers)(filename)
+    valid = (
+        eval(
+            f"lambda x: {check}",
+            specifiers,
+        )(filename)
+        if check
+        else True
+    )
 
-            value = "".join(raw_value.split(filename)[:-1]) + value
+    if valid:
+        value = eval(f"lambda x: {process}", specifiers)(filename)
 
-            if os.path.exists(value):
-                print(f"File '{value}' already exists!")
-                sys.exit(1)
+        value = "".join(raw_value.split(filename)[:-1]) + value
 
-            os.rename(raw_value, value)
+        if os.path.exists(value):
+            print(f"File '{value}' already exists!")
+            sys.exit(1)
 
-    c = 0
-    while PIPED:
+        os.rename(raw_value, value)
 
-        def inc_c():
-            global c
-            return (c := c + 1)
 
-        try:
-            value = input()
-        except EOFError:
-            break
+c = 0
+while PIPED:
 
-        __main__(value, count=inc_c)
+    def inc_c():
+        global c
+        return (c := c + 1)
 
-    if not PIPED:
-        __main__(sys.argv[0])
+    try:
+        value = input()
+    except EOFError:
+        break
+
+    __main__(value, count=inc_c)
+
+if not PIPED:
+    __main__(sys.argv[0])
