@@ -1,52 +1,94 @@
-#!/bin/bash
+#!/bin/env python3
 
-ARGS=("$@")
+import sys
 
-TOTAL_COUNT=0
-TOTAL_OLD_SIZE=0
-TOTAL_NEW_SIZE=0
+if __name__ != "__main__":
+    print("This script is not meant to be imported.")
+    sys.exit(1)
 
-START_TIME=$(date +%s)
+try:
+    import subprocess
+    from multiprocessing import Pool
 
-while read -r FILE; do
-    NEW_FILE="${FILE%.*}-X265.mp4"
+except ImportError as e:
+    print("ImportError: {}".format(e))
+    sys.exit(1)
 
-    CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "$FILE")
 
-    if [ "$CODEC" == "hevc" ]; then
-        continue
-    fi
+def __main__(value: str):
+    if value == "" or value.startswith("#"):
+        return
 
-    if [ -f "$NEW_FILE" ]; then
-        continue
-    fi
+    FILE = value
 
-    ffmpeg -i "$FILE" -c:v libx265 -vtag hvc1 -map_metadata 0 "${NEW_FILE}" "${ARGS[@]}"
+    command = (
+        "ffprobe",
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=codec_name",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        FILE,
+    )
 
-    # if conversion failed, delete the output file
-    if [ $? -ne 0 ]; then
-        rm -f "${NEW_FILE}"
+    try:
+        CODEC = (
+            subprocess.check_output(command, stderr=subprocess.DEVNULL)
+            .decode("utf-8")
+            .strip()
+        )
+    except subprocess.CalledProcessError:
+        return
 
-        echo "Failed to convert $FILE" >> log.txt
-        continue
-    fi
+    if CODEC == "hevc":
+        return
 
-    TOTAL_COUNT=$((TOTAL_COUNT + 1))
-    TOTAL_OLD_SIZE=$((TOTAL_OLD_SIZE + $(stat -c%s "$FILE")))
-    TOTAL_NEW_SIZE=$((TOTAL_NEW_SIZE + $(stat -c%s "${NEW_FILE}")))
+    NEW_FILE = ".".join(FILE.replace(".x264", "").split(".")[:-1])
+    NEW_FILE += ".x265.HEVC."
+    NEW_FILE += FILE.split(".")[-1]
 
-    echo "$FILE"
-done
+    command = (
+        "ffmpeg",
+        "-i",
+        FILE,
+        "-c:v",
+        "libx265",
+        "-vtag",
+        "hvc1",
+        "-map_metadata",
+        "0",
+        NEW_FILE,
+        "-y",
+    )
+    try:
+        pass
+        # subprocess.run(
+        #     command,
+        #     stdin=subprocess.DEVNULL,
+        #     stdout=subprocess.DEVNULL,
+        #     stderr=subprocess.DEVNULL,
+        # )
+    except subprocess.CalledProcessError:
+        return
+    else:
+        print(FILE)
 
-END_TIME=$(date +%s)
 
-EXECUTION_TIME=$((END_TIME - START_TIME))
+piped = not sys.stdin.isatty()
 
-echo "Batch x265 Encorder" >> log.txt
-echo "  Total files converted      : $TOTAL_COUNT" >> log.txt
-echo "  Total size before encoding : $(format (TOTAL_OLD_SIZE) -f bytes)" >> log.txt
-echo "  Total size after encoding  : $(format (TOTAL_NEW_SIZE) -f bytes)" >> log.txt
-echo "  Total size difference      : $(format ((TOTAL_OLD_SIZE - TOTAL_NEW_SIZE)) -f bytes)" >> log.txt
-printf "  Execution time             : %02d:%02d:%02d\n" "$((EXECUTION_TIME / 3600))" "$((EXECUTION_TIME % 3600 / 60))" "$((EXECUTION_TIME % 60))" >> log.txt
-echo "  Time per file              : $((EXECUTION_TIME / TOTAL_COUNT))" >> log.txt
-echo "  Time per byte              : $((EXECUTION_TIME / TOTAL_NEW_SIZE))" >> log.txt
+if not piped:
+    print("This script is meant to handle batch file operations that are piped.")
+    sys.exit(1)
+
+files = []
+while piped:
+    try:
+        files.append(input())
+    except EOFError:
+        break
+
+with Pool(4) as p:
+    p.map(__main__, files)
