@@ -74,10 +74,12 @@ def conkyd_continue() -> None:
 
 
 def conkyd_monitor_loop() -> None:
-    cores = os.cpu_count()
+    # cores = os.cpu_count()
 
-    thresh = 0.8 * cores
+    # thresh = 0.8 * (cores * 2)
+    thresh = 5
 
+    stopped, stopped_ts = False, None
     while True:
         load = open("/proc/loadavg").read().split(" ")[:3]
         load = [float(i) for i in load]
@@ -94,8 +96,20 @@ def conkyd_monitor_loop() -> None:
 
         if rising and load[0] > thresh:
             conkyd_stop()
+
+            stopped, stopped_ts = True, time.time()
+
+        elif stopped and (time.time() - stopped_ts) > 120:
+            conkyd_continue()
+            time.sleep(5)
+            conkyd_stop()
+
+            stopped, stopped_ts = True, time.time()
+
         else:
             conkyd_continue()
+
+            stopped, stopped_ts = False, None
 
         time.sleep(30)
 

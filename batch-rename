@@ -16,6 +16,7 @@ try:
 
     if TYPE_CHECKING:
         from typing import Callable
+
 except ImportError as e:
     print("ImportError: {}".format(e))
     sys.exit(1)
@@ -44,6 +45,9 @@ PIPED = not sys.stdin.isatty()
 
 
 def __main__(value: str, *, count: Callable = 0):
+    if value == "" or value.startswith("#"):
+        return
+
     filename = value.split("/")[-1]
     raw_value = value
 
